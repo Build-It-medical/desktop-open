@@ -1,9 +1,9 @@
 {
-  "version": "v1.0.0",
+  "version": "1.0.0",
   "platforms": {
     "linux-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTMnh6OWZoNXcyaTFrOE1FeUxkTm5pYXhPNXhoRlBlZkJzbkg3RmFOUkRwVm0vb29yMjNkSy82SDNYY25tU1EwS3E1OFpsQzRjNm51RUR5ZnE0cHFxTGIyNUZSa05xUWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzM3NDQ5OTEyCWZpbGU6Z3B3aWRnZXQtZGVza3RvcF8wLjEuMF9hbWQ2NC5BcHBJbWFnZQowVGhQdllBUDJ0UzB4andtZnM1TEdqQUhqWU9ocXJYN0RFbTVySlpqaWFYODFDUmNyQk5NZXoyWSt6cmtkWUR1ZXVaUEZGOXh1YjNlMlBqTUxXRWhDUT09Cg==",
-      "url": "https://github.com/Build-It-medical/desktop-open/releases/latest/download/gpwidget-desktop_amd64.AppImage"
+      "url": "https://github.com/Build-It-medical/desktop-open/releases/latest/download/gpwidget-desktop_0.1.0_amd64.AppImage"
     },
     "darwin-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTL01Nck5Mb3Yyb3FDRG9zZ01yTjBpMXpPeiticlpVQldzalJvU3ptRDhmZE8vTW0zazByK0ZOUDBvL3dHSkluNS9YQ2c0eG1HZWhXeTJPK2dMRmNqdDQ0cG9MdmR0VXc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzM3Mzc0Nzc2CWZpbGU6Z3B3aWRnZXQtZGVza3RvcC5hcHAudGFyLmd6Cm5xYThNRjlHdVNIU0tTVEhNWlNPQVhzRjc3QnljR0hCbElrby9JOUxLTHB1bHg0RTZwbmJZLzZVOWpRN2ZwekI4SHdUQVA5SlpnU29tdExRWEg5S0FRPT0K",
