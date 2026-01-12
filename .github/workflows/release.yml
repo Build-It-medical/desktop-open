@@ -17,6 +17,11 @@ on:
           - draft
           - prerelease
           - production
+      source_branch:
+        description: 'Branch to build from source repo'
+        required: true
+        default: 'main'
+        type: string
 
 jobs:
   publish-tauri:
@@ -41,6 +46,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.SOURCE_REPO }}
+          ref: ${{ github.event.inputs.source_branch || 'app-/-desktop-builds-added' }}
           path: src
           token: ${{ secrets.GH_PAT }}
 
