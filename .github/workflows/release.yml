@@ -4,6 +4,19 @@ on:
   push:
     branches:
       - main
+      - staging
+      - app-/-desktop-builds-added
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'draft'
+        type: choice
+        options:
+          - draft
+          - prerelease
+          - production
 
 jobs:
   publish-tauri:
@@ -49,8 +62,8 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: install frontend dependencies
-        run: npm install # change this to npm, pnpm or bun depending on which one you use.
-        working-directory: ./src
+        run: npm install
+        working-directory: ./src/packages/desktop
 
       - uses: tauri-apps/tauri-action@v0.5
         env:
@@ -58,11 +71,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          projectPath: ./src
-          releaseName: "App v__VERSION__"
+          tagName: app-v__VERSION__
+          projectPath: ./src/packages/desktop
+          releaseName: "GPWidget Desktop v__VERSION__${{ github.ref_name == 'staging' && ' (Staging)' || '' }}"
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
-          prerelease: false
+          releaseDraft: ${{ github.event.inputs.release_type == 'production' && 'false' || 'true' }}
+          prerelease: ${{ github.ref_name == 'staging' || github.event.inputs.release_type == 'prerelease' }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
