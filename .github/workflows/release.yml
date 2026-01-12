@@ -85,3 +85,27 @@ jobs:
           prerelease: ${{ github.ref_name == 'staging' || github.event.inputs.release_type == 'prerelease' }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+  notify-api:
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Notify update API
+        run: |
+          curl -X POST "${{ secrets.DESKTOP_UPDATE_API_URL || 'https://dwe1kitwmj.execute-api.eu-west-2.amazonaws.com' }}/desktop/update-webhook" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.DESKTOP_UPDATE_API_KEY || 'gpwidget-desktop-webhook-2025' }}" \
+            -d '{
+              "app": "gpwidget",
+              "version": "${{ needs.publish-tauri.outputs.appVersion }}",
+              "releaseUrl": "https://github.com/Build-It-medical/desktop-open/releases/latest",
+              "attributes": {
+                "mac": "https://github.com/Build-It-medical/desktop-open/releases/latest/download/gpwidget-desktop.app.tar.gz",
+                "win": "https://github.com/Build-It-medical/desktop-open/releases/latest/download/gpwidget-desktop.exe",
+                "linux": "https://github.com/Build-It-medical/desktop-open/releases/latest/download/gpwidget-desktop.AppImage"
+              },
+              "triggeredBy": "${{ github.actor }}",
+              "branch": "${{ github.ref_name }}",
+              "recommended": true
+            }'
