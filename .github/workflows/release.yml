@@ -3,25 +3,28 @@ name: "publish"
 on:
   push:
     branches:
-      - main
-      - staging
-      - app-/-desktop-builds-added
+      - main        # prod builds
+      - staging     # staging builds
   workflow_dispatch:
     inputs:
-      release_type:
-        description: 'Release type'
+      stage:
+        description: 'Stage/Environment'
         required: true
-        default: 'draft'
+        default: 'dev'
         type: choice
         options:
-          - draft
-          - prerelease
-          - production
+          - dev
+          - staging
+          - prod
       source_branch:
         description: 'Branch to build from source repo'
         required: true
         default: 'main'
         type: string
+
+env:
+  # Determine stage from branch or input
+  STAGE: ${{ github.event.inputs.stage || (github.ref_name == 'main' && 'prod') || github.ref_name }}
 
 jobs:
   publish-tauri:
@@ -31,9 +34,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # for Arm based macs (M1 and above).
+          - platform: "macos-latest"
             args: "--target aarch64-apple-darwin"
-          - platform: "macos-latest" # for Intel based macs.
+          - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
           - platform: "ubuntu-22.04"
             args: ""
@@ -42,7 +45,7 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - name: clone source repo
+      - name: Clone source repo
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.SOURCE_REPO }}
@@ -50,39 +53,39 @@ jobs:
           path: src
           token: ${{ secrets.GH_PAT }}
 
-      - name: setup node
+      - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      - name: install Rust stable
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: install frontend dependencies
+      - name: Install frontend dependencies
         run: npm install
         working-directory: ./src/packages/desktop
 
       - uses: tauri-apps/tauri-action@v0.5
+        id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: app-v__VERSION__
+          tagName: app-v__VERSION__${{ env.STAGE != 'prod' && format('-{0}', env.STAGE) || '' }}
           projectPath: ./src/packages/desktop
-          releaseName: "GPWidget Desktop v__VERSION__${{ github.ref_name == 'staging' && ' (Staging)' || '' }}"
+          releaseName: "GPWidget Desktop v__VERSION__${{ env.STAGE != 'prod' && format(' ({0})', env.STAGE) || '' }}"
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: ${{ github.event.inputs.release_type == 'production' && 'false' || 'true' }}
-          prerelease: ${{ github.ref_name == 'staging' || github.event.inputs.release_type == 'prerelease' }}
+          releaseDraft: false
+          prerelease: ${{ env.STAGE != 'prod' }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
@@ -90,6 +93,8 @@ jobs:
     needs: publish-tauri
     runs-on: ubuntu-latest
     if: success()
+    env:
+      STAGE: ${{ github.event.inputs.stage || (github.ref_name == 'main' && 'prod') || github.ref_name }}
     steps:
       - name: Checkout this repo to get version
         uses: actions/checkout@v4
@@ -100,22 +105,37 @@ jobs:
           VERSION=$(cat trigger)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Got version: $VERSION"
+          echo "Stage: ${{ env.STAGE }}"
+
+      - name: Determine API URL
+        id: api_url
+        run: |
+          if [ "${{ env.STAGE }}" == "prod" ]; then
+            echo "url=https://app-api-open.gpwidget.com/v1" >> $GITHUB_OUTPUT
+          elif [ "${{ env.STAGE }}" == "staging" ]; then
+            echo "url=https://staging-app-api-open-gpwidget.builditmedical.tech/v1" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ secrets.DESKTOP_UPDATE_API_URL || 'https://dev-app-api-open-gpwidget.builditmedical.tech/v1' }}" >> $GITHUB_OUTPUT
+          fi
           
       - name: Notify update API
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
-          curl -X POST "${{ secrets.DESKTOP_UPDATE_API_URL || 'https://dwe1kitwmj.execute-api.eu-west-2.amazonaws.com' }}/desktop/update-webhook" \
+          TAG_SUFFIX="${{ env.STAGE != 'prod' && format('-{0}', env.STAGE) || '' }}"
+          
+          curl -X POST "${{ steps.api_url.outputs.url }}/desktop/update-webhook" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.DESKTOP_UPDATE_API_KEY || 'gpwidget-desktop-webhook-2025' }}" \
             -d "{
               \"app\": \"gpwidget\",
               \"version\": \"$VERSION\",
-              \"releaseUrl\": \"https://github.com/Build-It-medical/desktop-open/releases/tag/app-v$VERSION\",
+              \"stage\": \"${{ env.STAGE }}\",
+              \"releaseUrl\": \"https://github.com/Build-It-medical/desktop-open/releases/tag/app-v${VERSION}${TAG_SUFFIX}\",
               \"attributes\": {
-                \"mac\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v$VERSION/gpwidget-desktop_${VERSION}_aarch64.dmg\",
-                \"macIntel\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v$VERSION/gpwidget-desktop_${VERSION}_x64.dmg\",
-                \"win\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v$VERSION/gpwidget-desktop_${VERSION}_x64-setup.exe\",
-                \"linux\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v$VERSION/gpwidget-desktop_${VERSION}_amd64.AppImage\"
+                \"mac\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v${VERSION}${TAG_SUFFIX}/gpwidget-desktop_${VERSION}_aarch64.dmg\",
+                \"macIntel\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v${VERSION}${TAG_SUFFIX}/gpwidget-desktop_${VERSION}_x64.dmg\",
+                \"win\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v${VERSION}${TAG_SUFFIX}/gpwidget-desktop_${VERSION}_x64-setup.exe\",
+                \"linux\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v${VERSION}${TAG_SUFFIX}/gpwidget-desktop_${VERSION}_amd64.AppImage\"
               },
               \"triggeredBy\": \"${{ github.actor }}\",
               \"branch\": \"${{ github.ref_name }}\",
