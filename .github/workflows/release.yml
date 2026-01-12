@@ -91,37 +91,33 @@ jobs:
     runs-on: ubuntu-latest
     if: success()
     steps:
-      - name: Clone source repo to get version
+      - name: Checkout this repo to get version
         uses: actions/checkout@v4
-        with:
-          repository: ${{ secrets.SOURCE_REPO }}
-          ref: ${{ github.event.inputs.source_branch || 'app-/-desktop-builds-added' }}
-          token: ${{ secrets.GH_PAT }}
-          sparse-checkout: packages/desktop/src-tauri/tauri.conf.json
-          sparse-checkout-cone-mode: false
           
-      - name: Get version from tauri.conf.json
+      - name: Get version from trigger file
         id: get_version
         run: |
-          VERSION=$(jq -r '.version' packages/desktop/src-tauri/tauri.conf.json)
+          VERSION=$(cat trigger)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Got version: $VERSION"
           
       - name: Notify update API
         run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
           curl -X POST "${{ secrets.DESKTOP_UPDATE_API_URL || 'https://dwe1kitwmj.execute-api.eu-west-2.amazonaws.com' }}/desktop/update-webhook" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.DESKTOP_UPDATE_API_KEY || 'gpwidget-desktop-webhook-2025' }}" \
-            -d '{
-              "app": "gpwidget",
-              "version": "${{ steps.get_version.outputs.version }}",
-              "releaseUrl": "https://github.com/Build-It-medical/desktop-open/releases/latest",
-              "attributes": {
-                "mac": "https://github.com/Build-It-medical/desktop-open/releases/latest/download/gpwidget-desktop.app.tar.gz",
-                "win": "https://github.com/Build-It-medical/desktop-open/releases/latest/download/gpwidget-desktop.exe",
-                "linux": "https://github.com/Build-It-medical/desktop-open/releases/latest/download/gpwidget-desktop.AppImage"
+            -d "{
+              \"app\": \"gpwidget\",
+              \"version\": \"$VERSION\",
+              \"releaseUrl\": \"https://github.com/Build-It-medical/desktop-open/releases/tag/app-v$VERSION\",
+              \"attributes\": {
+                \"mac\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v$VERSION/gpwidget-desktop_${VERSION}_aarch64.dmg\",
+                \"macIntel\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v$VERSION/gpwidget-desktop_${VERSION}_x64.dmg\",
+                \"win\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v$VERSION/gpwidget-desktop_${VERSION}_x64-setup.exe\",
+                \"linux\": \"https://github.com/Build-It-medical/desktop-open/releases/download/app-v$VERSION/gpwidget-desktop_${VERSION}_amd64.AppImage\"
               },
-              "triggeredBy": "${{ github.actor }}",
-              "branch": "${{ github.ref_name }}",
-              "recommended": true
-            }'
+              \"triggeredBy\": \"${{ github.actor }}\",
+              \"branch\": \"${{ github.ref_name }}\",
+              \"recommended\": true
+            }"
