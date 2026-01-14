@@ -9,3 +9,4 @@ The SST application is setup to host the usermanagement api on a custom domain, 
 In .env we need one other variable `AUTH_PAGE` this should point to where we're redirecting, i.e. the GPWidget web app. In local this can be `http://localhost:3000` so it will point to your local instance of the sst frontend. In prod it should be https://app.gpwidget.com
 
 It is important to note that this executable will only work with version v0.2.0 of the sst application which is currently on branch `support-executable`. (Remove this when stable and in use, just highlight minimal working version of sst app)
+a
